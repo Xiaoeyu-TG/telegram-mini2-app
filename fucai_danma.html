@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>福彩3D胆码筛选</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --tg-bg: var(--tg-theme-bg-color, #ffffff);
+      --tg-text: var(--tg-theme-text-color, #000000);
+      --tg-hint: var(--tg-theme-hint-color, #999999);
+      --tg-button: var(--tg-theme-button-color, #2481cc);
+      --tg-button-text: var(--tg-theme-button-text-color, #ffffff);
+      --tg-secondary: var(--tg-theme-secondary-bg-color, #f0f0f0);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--tg-bg);
+      color: var(--tg-text);
+      padding: 12px;
+      line-height: 1.4;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.25rem;
+      text-align: center;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    .card {
+      background: var(--tg-secondary);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-title span.badge {
+      background: var(--tg-button);
+      color: var(--tg-button-text);
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    .digit-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .digit-btn {
+      aspect-ratio: 1;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      background: var(--tg-bg);
+      color: var(--tg-text);
+      font-size: 1.2rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .digit-btn.selected {
+      background: var(--tg-button);
+      color: var(--tg-button-text);
+      border-color: var(--tg-button);
+    }
+    .digit-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .result {
+      background: var(--tg-bg);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 8px;
+      font-size: 0.95rem;
+    }
+    .result .count {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--tg-button);
+    }
+    .result .label {
+      color: var(--tg-hint);
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--tg-button);
+      color: var(--tg-button-text);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--tg-button);
+      border: 1px solid var(--tg-button);
+    }
+    .list-area {
+      margin-top: 10px;
+      max-height: 260px;
+      overflow-y: auto;
+      background: var(--tg-bg);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      word-break: break-all;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .list-area.show { display: block; }
+    .hint {
+      font-size: 0.8rem;
+      color: var(--tg-hint);
+      margin-top: 6px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--tg-hint);
+      margin-top: 20px;
+      padding-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>福彩3D 胆码筛选工具</h1>
+
+  <!-- 三胆 123出 -->
+  <div class="card" id="card-san">
+    <div class="card-title">
+      三胆 · 123出
+      <span class="badge" id="badge-san">0/3</span>
+    </div>
+    <div class="digit-grid" id="grid-san"></div>
+    <div class="result">
+      <div class="label">符合条件注数</div>
+      <div class="count" id="count-san">—</div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="calcSan()">计算 / 刷新</button>
+      <button class="btn btn-secondary" onclick="copyList('san')">点击复制</button>
+    </div>
+    <div class="list-area" id="list-san"></div>
+    <div class="hint">从0-9选3个不同数字作为胆码。计算后直接显示全部657注号码（英文逗号分隔）。</div>
+  </div>
+
+  <!-- 双胆 12出 -->
+  <div class="card" id="card-shuang">
+    <div class="card-title">
+      双胆 · 12出
+      <span class="badge" id="badge-shuang">0/2</span>
+    </div>
+    <div class="digit-grid" id="grid-shuang"></div>
+    <div class="result">
+      <div class="label">符合条件注数</div>
+      <div class="count" id="count-shuang">—</div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="calcShuang()">计算 / 刷新</button>
+      <button class="btn btn-secondary" onclick="copyList('shuang')">点击复制</button>
+    </div>
+    <div class="list-area" id="list-shuang"></div>
+    <div class="hint">从0-9选2个不同数字作为胆码。计算后直接显示全部488注号码（英文逗号分隔）。</div>
+  </div>
+
+  <!-- 独胆 1出 -->
+  <div class="card" id="card-du">
+    <div class="card-title">
+      独胆 · 1出
+      <span class="badge" id="badge-du">0/1</span>
+    </div>
+    <div class="digit-grid" id="grid-du"></div>
+    <div class="result">
+      <div class="label">符合条件注数</div>
+      <div class="count" id="count-du">—</div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="calcDu()">计算 / 刷新</button>
+      <button class="btn btn-secondary" onclick="copyList('du')">点击复制</button>
+    </div>
+    <div class="list-area" id="list-du"></div>
+    <div class="hint">从0-9选1个数字作为独胆。计算后直接显示全部271注号码（英文逗号分隔）。</div>
+  </div>
+
+  <div class="footer">
+    规则：同一数字多次出现只计1次 · 不考虑定位<br>
+    计算后自动显示全部号码，点击「点击复制」可一键复制
+  </div>
+
+  <script>
+    // Telegram WebApp 初始化
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      document.documentElement.style.setProperty('--tg-bg', tg.themeParams.bg_color || '#ffffff');
+      document.documentElement.style.setProperty('--tg-text', tg.themeParams.text_color || '#000000');
+      document.documentElement.style.setProperty('--tg-hint', tg.themeParams.hint_color || '#999999');
+      document.documentElement.style.setProperty('--tg-button', tg.themeParams.button_color || '#2481cc');
+      document.documentElement.style.setProperty('--tg-button-text', tg.themeParams.button_text_color || '#ffffff');
+      document.documentElement.style.setProperty('--tg-secondary', tg.themeParams.secondary_bg_color || '#f0f0f0');
+    }
+
+    // 状态
+    const state = {
+      san: new Set(),
+      shuang: new Set(),
+      du: new Set()
+    };
+
+    // 生成数字按钮
+    function createGrid(containerId, type, maxSelect) {
+      const grid = document.getElementById(containerId);
+      grid.innerHTML = '';
+      for (let i = 0; i <= 9; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'digit-btn';
+        btn.textContent = i;
+        btn.dataset.digit = i;
+        btn.onclick = () => toggleDigit(type, i, maxSelect, btn);
+        grid.appendChild(btn);
+      }
+    }
+
+    function toggleDigit(type, digit, maxSelect, btn) {
+      const set = state[type];
+      if (set.has(digit)) {
+        set.delete(digit);
+        btn.classList.remove('selected');
+      } else {
+        if (set.size >= maxSelect) {
+          if (tg) tg.showAlert(`最多只能选择 ${maxSelect} 个数字`);
+          else alert(`最多只能选择 ${maxSelect} 个数字`);
+          return;
+        }
+        set.add(digit);
+        btn.classList.add('selected');
+      }
+      updateBadge(type, maxSelect);
+      // 自动计算
+      if (type === 'san') calcSan();
+      if (type === 'shuang') calcShuang();
+      if (type === 'du') calcDu();
+    }
+
+    function updateBadge(type, max) {
+      const badge = document.getElementById(`badge-${type}`);
+      badge.textContent = `${state[type].size}/${max}`;
+    }
+
+    // 计算符合条件的号码（至少出1个胆码）
+    function getMatchingNumbers(danSet) {
+      const result = [];
+      for (let n = 0; n < 1000; n++) {
+        const s = n.toString().padStart(3, '0');
+        const digits = s.split('').map(Number);
+        const appeared = new Set(digits.filter(d => danSet.has(d)));
+        if (appeared.size >= 1) {
+          result.push(s);
+        }
+      }
+      return result;
+    }
+
+    function showResult(type, expectedCount, requiredSize) {
+      const set = state[type];
+      const countEl = document.getElementById(`count-${type}`);
+      const listEl = document.getElementById(`list-${type}`);
+
+      if (set.size !== requiredSize) {
+        countEl.textContent = `请选择${requiredSize}个胆码`;
+        listEl.classList.remove('show');
+        listEl.textContent = '';
+        listEl.dataset.list = '';
+        return;
+      }
+
+      const list = getMatchingNumbers(set);
+      // 固定显示理论注数
+      countEl.textContent = expectedCount + ' 注';
+
+      // 用英文逗号分隔，直接显示全部号码
+      const text = list.join(',');
+      listEl.dataset.list = text;
+      listEl.textContent = text;
+      listEl.classList.add('show');
+    }
+
+    function calcSan() {
+      showResult('san', 657, 3);
+    }
+
+    function calcShuang() {
+      showResult('shuang', 488, 2);
+    }
+
+    function calcDu() {
+      showResult('du', 271, 1);
+    }
+
+    function copyList(type) {
+      const listEl = document.getElementById(`list-${type}`);
+      const text = listEl.dataset.list;
+      if (!text) {
+        if (tg) tg.showAlert('请先选择胆码并计算');
+        else alert('请先选择胆码并计算');
+        return;
+      }
+      navigator.clipboard.writeText(text).then(() => {
+        if (tg) tg.showAlert('已复制全部号码');
+        else alert('已复制全部号码');
+      }).catch(() => {
+        // 兜底：选中文本
+        const range = document.createRange();
+        range.selectNodeContents(listEl);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        if (tg) tg.showAlert('请手动复制选中内容');
+        else alert('请手动复制选中内容');
+      });
+    }
+
+    // 初始化
+    createGrid('grid-san', 'san', 3);
+    createGrid('grid-shuang', 'shuang', 2);
+    createGrid('grid-du', 'du', 1);
+
+    // 初始提示
+    document.getElementById('count-san').textContent = '请选择3个胆码';
+    document.getElementById('count-shuang').textContent = '请选择2个胆码';
+    document.getElementById('count-du').textContent = '请选择1个独胆';
+  </script>
+</body>
+</html>
